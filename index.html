@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#12231f" />
+    <title>Toloka Interview Flashcards</title>
+    <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="10" fill="%2312231f"/><path d="M16 18h32v28H16z" fill="%23fffdf8"/><path d="M21 26h22M21 34h16" stroke="%23176c58" stroke-width="4" stroke-linecap="round"/></svg>' />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Toloka Program Director</p>
+          <h1>Interview Flashcards</h1>
+        </div>
+        <button class="ghost-button" id="resetButton" type="button">Reset</button>
+      </header>
+
+      <section class="stats-strip" aria-label="Practice statistics">
+        <article>
+          <span id="dueCount">0</span>
+          <small>Due</small>
+        </article>
+        <article>
+          <span id="todayCount">0</span>
+          <small>Today</small>
+        </article>
+        <article>
+          <span id="accuracyValue">0%</span>
+          <small>Accuracy</small>
+        </article>
+        <article>
+          <span id="streakValue">0</span>
+          <small>Streak</small>
+        </article>
+      </section>
+
+      <nav class="tabs" aria-label="Views">
+        <button class="tab is-active" data-view="review" type="button">Review</button>
+        <button class="tab" data-view="deck" type="button">Deck</button>
+        <button class="tab" data-view="stats" type="button">Stats</button>
+      </nav>
+
+      <section class="view is-active" id="reviewView">
+        <div class="mode-row" aria-label="Review mode">
+          <button class="mode-button is-active" data-mode="due" type="button">Due</button>
+          <button class="mode-button" data-mode="all" type="button">All</button>
+          <button class="mode-button" data-mode="starred" type="button">Starred</button>
+        </div>
+
+        <article class="flashcard" aria-live="polite">
+          <div class="card-meta">
+            <span id="categoryLabel">Category</span>
+            <span id="positionLabel">0 / 0</span>
+          </div>
+          <div class="timer-row">
+            <span id="timerLabel">00:00</span>
+            <span id="nextDueLabel">Due now</span>
+          </div>
+          <div class="card-face">
+            <p class="face-label">Question</p>
+            <h2 id="questionText"></h2>
+          </div>
+          <div class="card-face answer-face" id="answerPanel" hidden>
+            <p class="face-label">Answer</p>
+            <p id="answerText"></p>
+          </div>
+          <div class="primary-actions">
+            <button class="primary-button" id="showAnswerButton" type="button">Show answer</button>
+            <button class="secondary-button" id="starButton" type="button">Star</button>
+          </div>
+          <div class="rating-grid" id="ratingGrid" hidden>
+            <button data-rating="again" type="button">
+              <strong>Again</strong>
+              <span>1m</span>
+            </button>
+            <button data-rating="hard" type="button">
+              <strong>Hard</strong>
+              <span>10m</span>
+            </button>
+            <button data-rating="good" type="button">
+              <strong>Good</strong>
+              <span id="goodIntervalLabel">1d</span>
+            </button>
+            <button data-rating="easy" type="button">
+              <strong>Easy</strong>
+              <span id="easyIntervalLabel">3d</span>
+            </button>
+          </div>
+        </article>
+      </section>
+
+      <section class="view" id="deckView">
+        <div class="deck-toolbar">
+          <label class="search-label" for="searchInput">Search</label>
+          <input id="searchInput" type="search" placeholder="Search cards" autocomplete="off" />
+        </div>
+        <div class="deck-list" id="deckList"></div>
+      </section>
+
+      <section class="view" id="statsView">
+        <div class="stats-grid">
+          <article>
+            <span id="totalCardsValue">0</span>
+            <small>Total cards</small>
+          </article>
+          <article>
+            <span id="masteredValue">0</span>
+            <small>Mastered</small>
+          </article>
+          <article>
+            <span id="reviewedValue">0</span>
+            <small>Reviews</small>
+          </article>
+          <article>
+            <span id="averageTimeValue">0s</span>
+            <small>Avg. answer time</small>
+          </article>
+          <article>
+            <span id="nextReviewValue">Now</span>
+            <small>Next review</small>
+          </article>
+          <article>
+            <span id="newCardsValue">0</span>
+            <small>New cards</small>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <script src="cards.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
