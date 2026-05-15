@@ -1,5 +1,5 @@
 (function () {
-  const cards = window.FLASHCARDS;
+  const cards = [...window.FLASHCARDS, ...(window.EXTRA_FLASHCARDS || [])];
   const storeKey = "tolokaInterviewFlashcards.v1";
   const bucketNames = ["hard", "medium", "easy"];
   const bucketLabels = {
