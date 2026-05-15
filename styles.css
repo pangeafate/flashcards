@@ -150,7 +150,7 @@ h1 {
 
 .mode-row {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 8px;
   margin-bottom: 12px;
 }
@@ -242,7 +242,7 @@ h2 {
 
 .rating-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
   margin-top: 12px;
 }
@@ -254,11 +254,11 @@ h2 {
   padding: 8px 4px;
 }
 
-.rating-grid button[data-rating="again"] {
+.rating-grid button[data-bucket-target="hard"] {
   border-color: rgba(182, 58, 53, 0.38);
 }
 
-.rating-grid button[data-rating="easy"] {
+.rating-grid button[data-bucket-target="easy"] {
   border-color: rgba(23, 108, 88, 0.42);
 }
 
@@ -356,6 +356,7 @@ h2 {
     font-size: 0.98rem;
   }
 
+  .mode-row,
   .rating-grid {
     grid-template-columns: repeat(2, 1fr);
   }

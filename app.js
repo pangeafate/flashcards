@@ -1,60 +1,54 @@
 (function () {
   const cards = window.FLASHCARDS;
   const storeKey = "tolokaInterviewFlashcards.v1";
-  const minute = 60 * 1000;
-  const day = 24 * 60 * minute;
-  const ratingLabels = {
-    again: "Again",
+  const bucketNames = ["hard", "medium", "easy"];
+  const bucketLabels = {
     hard: "Hard",
-    good: "Good",
-    easy: "Easy"
+    medium: "Medium",
+    easy: "Easy",
+    starred: "Starred"
   };
 
   const elements = {
-    dueCount: document.getElementById("dueCount"),
-    todayCount: document.getElementById("todayCount"),
-    accuracyValue: document.getElementById("accuracyValue"),
-    streakValue: document.getElementById("streakValue"),
+    hardCount: document.getElementById("hardCount"),
+    mediumCount: document.getElementById("mediumCount"),
+    easyCount: document.getElementById("easyCount"),
+    starredCount: document.getElementById("starredCount"),
     totalCardsValue: document.getElementById("totalCardsValue"),
-    masteredValue: document.getElementById("masteredValue"),
+    sessionLeftValue: document.getElementById("sessionLeftValue"),
     reviewedValue: document.getElementById("reviewedValue"),
     averageTimeValue: document.getElementById("averageTimeValue"),
-    nextReviewValue: document.getElementById("nextReviewValue"),
-    newCardsValue: document.getElementById("newCardsValue"),
+    todayValue: document.getElementById("todayValue"),
+    streakValue: document.getElementById("streakValue"),
     categoryLabel: document.getElementById("categoryLabel"),
     positionLabel: document.getElementById("positionLabel"),
     timerLabel: document.getElementById("timerLabel"),
-    nextDueLabel: document.getElementById("nextDueLabel"),
+    sessionLabel: document.getElementById("sessionLabel"),
     questionText: document.getElementById("questionText"),
     answerPanel: document.getElementById("answerPanel"),
     answerText: document.getElementById("answerText"),
     showAnswerButton: document.getElementById("showAnswerButton"),
     starButton: document.getElementById("starButton"),
     ratingGrid: document.getElementById("ratingGrid"),
-    goodIntervalLabel: document.getElementById("goodIntervalLabel"),
-    easyIntervalLabel: document.getElementById("easyIntervalLabel"),
     resetButton: document.getElementById("resetButton"),
     searchInput: document.getElementById("searchInput"),
     deckList: document.getElementById("deckList")
   };
 
   let appState = loadState();
-  let currentMode = "due";
-  let currentIndex = 0;
-  let currentCardId = cards[0].id;
-  let answerVisible = false;
+  let selectedBucket = "medium";
+  let sessionQueue = [];
+  let sessionTotal = 0;
+  let sessionSeen = 0;
+  let currentCardId = null;
   let cardStartedAt = Date.now();
   let tickHandle = window.setInterval(updateTimer, 1000);
 
   function defaultCardState() {
     return {
-      dueAt: 0,
-      interval: 0,
-      ease: 2.4,
+      bucket: "medium",
       attempts: 0,
-      remembered: 0,
-      repetitions: 0,
-      lapses: 0,
+      moves: 0,
       totalSeconds: 0,
       lastReviewedAt: 0,
       starred: false
@@ -64,7 +58,7 @@
   function loadState() {
     try {
       const parsed = JSON.parse(localStorage.getItem(storeKey));
-      if (parsed && parsed.cards && parsed.history) {
+      if (parsed && parsed.cards) {
         return normalizeState(parsed);
       }
     } catch (error) {
@@ -78,13 +72,35 @@
       cards: {},
       history: Array.isArray(state.history) ? state.history : []
     };
+
     cards.forEach((card) => {
+      const source = state.cards && state.cards[card.id] ? state.cards[card.id] : {};
       next.cards[card.id] = {
         ...defaultCardState(),
-        ...(state.cards && state.cards[card.id] ? state.cards[card.id] : {})
+        ...source,
+        bucket: normalizeBucket(source),
+        attempts: Number(source.attempts || 0),
+        moves: Number(source.moves || source.attempts || 0),
+        totalSeconds: Number(source.totalSeconds || 0),
+        lastReviewedAt: Number(source.lastReviewedAt || 0),
+        starred: Boolean(source.starred)
       };
     });
+
     return next;
+  }
+
+  function normalizeBucket(source) {
+    if (bucketNames.includes(source.bucket)) {
+      return source.bucket;
+    }
+    if (source.lapses > 0 && !source.repetitions) {
+      return "hard";
+    }
+    if (source.repetitions >= 3) {
+      return "easy";
+    }
+    return "medium";
   }
 
   function saveState() {
@@ -102,37 +118,39 @@
     return `${date.getFullYear()}-${month}-${dayOfMonth}`;
   }
 
-  function getDueCards() {
-    const timestamp = now();
-    return cards.filter((card) => appState.cards[card.id].dueAt <= timestamp);
-  }
-
-  function getVisibleCards() {
-    if (currentMode === "all") {
-      return cards;
-    }
-    if (currentMode === "starred") {
+  function cardsForBucket(bucket) {
+    if (bucket === "starred") {
       return cards.filter((card) => appState.cards[card.id].starred);
     }
-    return getDueCards();
+    return cards.filter((card) => appState.cards[card.id].bucket === bucket);
   }
 
-  function selectNextCard(preferredId) {
-    const visible = getVisibleCards();
-    if (!visible.length) {
-      currentCardId = cards
-        .slice()
-        .sort((left, right) => appState.cards[left.id].dueAt - appState.cards[right.id].dueAt)[0].id;
-      currentIndex = 0;
-      return;
+  function shuffle(values) {
+    const shuffled = values.slice();
+    for (let index = shuffled.length - 1; index > 0; index -= 1) {
+      const swapIndex = Math.floor(Math.random() * (index + 1));
+      [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
     }
-    const preferredIndex = visible.findIndex((card) => card.id === preferredId);
-    currentIndex = preferredIndex >= 0 ? preferredIndex : Math.min(currentIndex, visible.length - 1);
-    currentCardId = visible[currentIndex].id;
+    return shuffled;
+  }
+
+  function startSession(bucket = selectedBucket, preferredId) {
+    selectedBucket = bucket;
+    const ids = shuffle(cardsForBucket(bucket).map((card) => card.id));
+    if (preferredId && ids.includes(preferredId)) {
+      ids.splice(ids.indexOf(preferredId), 1);
+      ids.unshift(preferredId);
+    }
+    sessionQueue = ids;
+    sessionTotal = ids.length;
+    sessionSeen = 0;
+    currentCardId = sessionQueue[0] || null;
+    setActiveBucket(bucket);
+    showCard();
   }
 
   function currentCard() {
-    return cards.find((card) => card.id === currentCardId) || cards[0];
+    return cards.find((card) => card.id === currentCardId) || null;
   }
 
   function currentProgress(card) {
@@ -140,59 +158,71 @@
   }
 
   function showCard() {
-    const visible = getVisibleCards();
     const card = currentCard();
-    const progress = currentProgress(card);
-    answerVisible = false;
     cardStartedAt = now();
-
-    elements.categoryLabel.textContent = card.category;
-    elements.positionLabel.textContent = visible.length
-      ? `${currentIndex + 1} / ${visible.length}`
-      : `Next due`;
-    elements.questionText.textContent = card.prompt;
-    elements.answerText.textContent = card.answer;
     elements.answerPanel.hidden = true;
     elements.ratingGrid.hidden = true;
     elements.showAnswerButton.hidden = false;
+
+    if (!card) {
+      elements.categoryLabel.textContent = bucketLabels[selectedBucket];
+      elements.positionLabel.textContent = "0 / 0";
+      elements.questionText.textContent = sessionTotal ? "Session complete" : `No ${bucketLabels[selectedBucket]} cards`;
+      elements.answerText.textContent = "";
+      elements.showAnswerButton.textContent = "Shuffle again";
+      elements.starButton.hidden = true;
+      elements.sessionLabel.textContent = "0 left";
+      updateTimer();
+      renderStats();
+      renderDeck();
+      return;
+    }
+
+    const progress = currentProgress(card);
+    elements.categoryLabel.textContent = `${card.category} / ${bucketLabels[progress.bucket]}`;
+    elements.positionLabel.textContent = `${sessionSeen + 1} / ${sessionTotal}`;
+    elements.questionText.textContent = card.prompt;
+    elements.answerText.textContent = card.answer;
+    elements.showAnswerButton.textContent = "Show answer";
+    elements.starButton.hidden = false;
     elements.starButton.textContent = progress.starred ? "Starred" : "Star";
     elements.starButton.classList.toggle("is-starred", progress.starred);
-    elements.nextDueLabel.textContent = formatDue(progress.dueAt);
-    elements.goodIntervalLabel.textContent = formatInterval(nextInterval("good", progress));
-    elements.easyIntervalLabel.textContent = formatInterval(nextInterval("easy", progress));
     updateTimer();
     renderStats();
     renderDeck();
   }
 
   function revealAnswer() {
-    answerVisible = true;
+    if (!currentCard()) {
+      startSession(selectedBucket);
+      return;
+    }
     elements.answerPanel.hidden = false;
     elements.ratingGrid.hidden = false;
     elements.showAnswerButton.hidden = true;
   }
 
-  function rateCard(rating) {
+  function moveCurrentCard(targetBucket) {
     const card = currentCard();
+    if (!card || !bucketNames.includes(targetBucket)) {
+      return;
+    }
+
     const progress = currentProgress(card);
     const elapsedSeconds = Math.max(1, Math.round((now() - cardStartedAt) / 1000));
-    const remembered = rating === "good" || rating === "easy";
-    const interval = nextInterval(rating, progress);
+    const fromBucket = progress.bucket;
 
+    progress.bucket = targetBucket;
     progress.attempts += 1;
-    progress.remembered += remembered ? 1 : 0;
-    progress.repetitions = remembered ? progress.repetitions + 1 : 0;
-    progress.lapses += rating === "again" ? 1 : 0;
-    progress.interval = interval;
-    progress.ease = nextEase(rating, progress.ease);
-    progress.dueAt = now() + interval;
+    progress.moves += 1;
     progress.totalSeconds += elapsedSeconds;
     progress.lastReviewedAt = now();
 
     appState.history.push({
       cardId: card.id,
-      rating,
-      label: ratingLabels[rating],
+      fromBucket,
+      toBucket: targetBucket,
+      sessionBucket: selectedBucket,
       reviewedAt: now(),
       seconds: elapsedSeconds
     });
@@ -200,76 +230,48 @@
       appState.history = appState.history.slice(-1000);
     }
 
+    sessionQueue.shift();
+    sessionSeen += 1;
+    currentCardId = sessionQueue[0] || null;
     saveState();
-    advanceAfterRating(card.id);
-  }
-
-  function advanceAfterRating(reviewedId) {
-    const visible = getVisibleCards().filter((card) => card.id !== reviewedId);
-    if (visible.length) {
-      currentIndex = currentIndex % visible.length;
-      currentCardId = visible[currentIndex].id;
-    } else {
-      selectNextCard();
-    }
     showCard();
   }
 
-  function nextEase(rating, ease) {
-    if (rating === "again") {
-      return Math.max(1.3, ease - 0.25);
+  function toggleStar() {
+    const card = currentCard();
+    if (!card) {
+      return;
     }
-    if (rating === "hard") {
-      return Math.max(1.3, ease - 0.1);
-    }
-    if (rating === "easy") {
-      return Math.min(3.2, ease + 0.15);
-    }
-    return ease;
-  }
-
-  function nextInterval(rating, progress) {
-    if (rating === "again") {
-      return minute;
-    }
-    if (rating === "hard") {
-      return progress.interval ? Math.max(10 * minute, Math.round(progress.interval * 1.2)) : 10 * minute;
-    }
-    if (rating === "good") {
-      return progress.interval ? Math.round(progress.interval * progress.ease) : day;
-    }
-    if (rating === "easy") {
-      return progress.interval ? Math.round(progress.interval * (progress.ease + 0.7)) : 3 * day;
-    }
-    return day;
+    const progress = currentProgress(card);
+    progress.starred = !progress.starred;
+    saveState();
+    elements.starButton.textContent = progress.starred ? "Starred" : "Star";
+    elements.starButton.classList.toggle("is-starred", progress.starred);
+    renderStats();
+    renderDeck();
   }
 
   function renderStats() {
-    const timestamp = now();
-    const due = getDueCards().length;
-    const today = todayKey(timestamp);
-    const todayReviews = appState.history.filter((item) => todayKey(item.reviewedAt) === today);
+    const hard = cardsForBucket("hard").length;
+    const medium = cardsForBucket("medium").length;
+    const easy = cardsForBucket("easy").length;
+    const starred = cardsForBucket("starred").length;
     const attempts = appState.history.length;
-    const remembered = appState.history.filter((item) => item.rating === "good" || item.rating === "easy").length;
-    const accuracy = attempts ? Math.round((remembered / attempts) * 100) : 0;
-    const mastered = cards.filter((card) => appState.cards[card.id].repetitions >= 3).length;
-    const reviewedCards = cards.filter((card) => appState.cards[card.id].attempts > 0).length;
     const totalSeconds = cards.reduce((sum, card) => sum + appState.cards[card.id].totalSeconds, 0);
     const avgSeconds = attempts ? Math.round(totalSeconds / attempts) : 0;
-    const nextDue = cards
-      .map((card) => appState.cards[card.id].dueAt)
-      .sort((left, right) => left - right)[0];
+    const today = todayKey();
+    const todayMoves = appState.history.filter((item) => todayKey(item.reviewedAt) === today).length;
 
-    elements.dueCount.textContent = due;
-    elements.todayCount.textContent = todayReviews.length;
-    elements.accuracyValue.textContent = `${accuracy}%`;
-    elements.streakValue.textContent = calculateStreak();
+    elements.hardCount.textContent = hard;
+    elements.mediumCount.textContent = medium;
+    elements.easyCount.textContent = easy;
+    elements.starredCount.textContent = starred;
     elements.totalCardsValue.textContent = cards.length;
-    elements.masteredValue.textContent = mastered;
+    elements.sessionLeftValue.textContent = sessionQueue.length;
     elements.reviewedValue.textContent = attempts;
     elements.averageTimeValue.textContent = avgSeconds ? `${avgSeconds}s` : "0s";
-    elements.nextReviewValue.textContent = formatDue(nextDue);
-    elements.newCardsValue.textContent = cards.length - reviewedCards;
+    elements.todayValue.textContent = todayMoves;
+    elements.streakValue.textContent = calculateStreak();
   }
 
   function calculateStreak() {
@@ -286,7 +288,8 @@
   function renderDeck() {
     const query = elements.searchInput.value.trim().toLowerCase();
     const filtered = cards.filter((card) => {
-      const searchable = `${card.category} ${card.prompt} ${card.answer}`.toLowerCase();
+      const progress = currentProgress(card);
+      const searchable = `${card.category} ${card.prompt} ${card.answer} ${bucketLabels[progress.bucket]}`.toLowerCase();
       return searchable.includes(query);
     });
 
@@ -300,50 +303,36 @@
         <span></span>
         <span></span>
         <span></span>
+        <span></span>
       `;
       item.querySelector("strong").textContent = card.prompt;
       const spans = item.querySelectorAll("span");
       spans[0].textContent = card.category;
-      spans[1].textContent = `Due: ${formatDue(progress.dueAt)}`;
+      spans[1].textContent = `Bucket: ${bucketLabels[progress.bucket]}`;
       spans[2].textContent = `Reviews: ${progress.attempts}`;
+      spans[3].textContent = progress.starred ? "Starred" : "";
       item.addEventListener("click", () => {
-        currentMode = "all";
-        setActiveMode("all");
-        selectNextCard(card.id);
+        startSession(progress.bucket, card.id);
         setActiveView("review");
-        showCard();
       });
       elements.deckList.appendChild(item);
     });
   }
 
-  function formatDue(dueAt) {
-    const remaining = dueAt - now();
-    if (remaining <= 0) {
-      return "Now";
-    }
-    return `in ${formatInterval(remaining)}`;
-  }
-
-  function formatInterval(ms) {
-    if (ms < 90 * 1000) {
-      return "1m";
-    }
-    if (ms < 60 * minute) {
-      return `${Math.round(ms / minute)}m`;
-    }
-    if (ms < 36 * 60 * minute) {
-      return `${Math.round(ms / (60 * minute))}h`;
-    }
-    return `${Math.round(ms / day)}d`;
-  }
-
   function updateTimer() {
+    const card = currentCard();
+    if (!card) {
+      elements.timerLabel.textContent = "00:00";
+      elements.sessionLabel.textContent = "0 left";
+      return;
+    }
+
     const elapsed = Math.max(0, Math.round((now() - cardStartedAt) / 1000));
     const minutes = String(Math.floor(elapsed / 60)).padStart(2, "0");
     const seconds = String(elapsed % 60).padStart(2, "0");
     elements.timerLabel.textContent = `${minutes}:${seconds}`;
-    elements.nextDueLabel.textContent = formatDue(currentProgress(currentCard()).dueAt);
+    elements.sessionLabel.textContent =
+      sessionQueue.length <= 1 ? "Last card" : `${sessionQueue.length - 1} left after this`;
   }
 
   function setActiveView(viewName) {
@@ -355,33 +344,25 @@
     });
   }
 
-  function setActiveMode(mode) {
-    currentMode = mode;
+  function setActiveBucket(bucket) {
     document.querySelectorAll(".mode-button").forEach((button) => {
-      button.classList.toggle("is-active", button.dataset.mode === mode);
+      button.classList.toggle("is-active", button.dataset.bucket === bucket);
     });
   }
 
   elements.showAnswerButton.addEventListener("click", revealAnswer);
-  elements.starButton.addEventListener("click", () => {
-    const progress = currentProgress(currentCard());
-    progress.starred = !progress.starred;
-    saveState();
-    showCard();
-  });
+  elements.starButton.addEventListener("click", toggleStar);
   elements.ratingGrid.addEventListener("click", (event) => {
-    const button = event.target.closest("button[data-rating]");
+    const button = event.target.closest("button[data-bucket-target]");
     if (button) {
-      rateCard(button.dataset.rating);
+      moveCurrentCard(button.dataset.bucketTarget);
     }
   });
   elements.resetButton.addEventListener("click", () => {
-    if (window.confirm("Reset all local practice statistics?")) {
+    if (window.confirm("Reset all local practice statistics and buckets?")) {
       localStorage.removeItem(storeKey);
       appState = loadState();
-      currentIndex = 0;
-      currentCardId = cards[0].id;
-      showCard();
+      startSession("medium");
     }
   });
   elements.searchInput.addEventListener("input", renderDeck);
@@ -389,12 +370,7 @@
     tab.addEventListener("click", () => setActiveView(tab.dataset.view));
   });
   document.querySelectorAll(".mode-button").forEach((button) => {
-    button.addEventListener("click", () => {
-      setActiveMode(button.dataset.mode);
-      currentIndex = 0;
-      selectNextCard();
-      showCard();
-    });
+    button.addEventListener("click", () => startSession(button.dataset.bucket));
   });
 
   document.addEventListener("visibilitychange", () => {
@@ -407,6 +383,5 @@
     }
   });
 
-  selectNextCard(cards[0].id);
-  showCard();
+  startSession("medium");
 })();

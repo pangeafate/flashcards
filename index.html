@@ -20,20 +20,20 @@
 
       <section class="stats-strip" aria-label="Practice statistics">
         <article>
-          <span id="dueCount">0</span>
-          <small>Due</small>
+          <span id="hardCount">0</span>
+          <small>Hard</small>
         </article>
         <article>
-          <span id="todayCount">0</span>
-          <small>Today</small>
+          <span id="mediumCount">0</span>
+          <small>Medium</small>
         </article>
         <article>
-          <span id="accuracyValue">0%</span>
-          <small>Accuracy</small>
+          <span id="easyCount">0</span>
+          <small>Easy</small>
         </article>
         <article>
-          <span id="streakValue">0</span>
-          <small>Streak</small>
+          <span id="starredCount">0</span>
+          <small>Starred</small>
         </article>
       </section>
 
@@ -44,10 +44,11 @@
       </nav>
 
       <section class="view is-active" id="reviewView">
-        <div class="mode-row" aria-label="Review mode">
-          <button class="mode-button is-active" data-mode="due" type="button">Due</button>
-          <button class="mode-button" data-mode="all" type="button">All</button>
-          <button class="mode-button" data-mode="starred" type="button">Starred</button>
+        <div class="mode-row" aria-label="Practice bucket">
+          <button class="mode-button" data-bucket="hard" type="button">Hard</button>
+          <button class="mode-button is-active" data-bucket="medium" type="button">Medium</button>
+          <button class="mode-button" data-bucket="easy" type="button">Easy</button>
+          <button class="mode-button" data-bucket="starred" type="button">Starred</button>
         </div>
 
         <article class="flashcard" aria-live="polite">
@@ -57,7 +58,7 @@
           </div>
           <div class="timer-row">
             <span id="timerLabel">00:00</span>
-            <span id="nextDueLabel">Due now</span>
+            <span id="sessionLabel">Session</span>
           </div>
           <div class="card-face">
             <p class="face-label">Question</p>
@@ -72,21 +73,17 @@
             <button class="secondary-button" id="starButton" type="button">Star</button>
           </div>
           <div class="rating-grid" id="ratingGrid" hidden>
-            <button data-rating="again" type="button">
-              <strong>Again</strong>
-              <span>1m</span>
-            </button>
-            <button data-rating="hard" type="button">
+            <button data-bucket-target="hard" type="button">
               <strong>Hard</strong>
-              <span>10m</span>
+              <span>Move</span>
             </button>
-            <button data-rating="good" type="button">
-              <strong>Good</strong>
-              <span id="goodIntervalLabel">1d</span>
+            <button data-bucket-target="medium" type="button">
+              <strong>Medium</strong>
+              <span>Move</span>
             </button>
-            <button data-rating="easy" type="button">
+            <button data-bucket-target="easy" type="button">
               <strong>Easy</strong>
-              <span id="easyIntervalLabel">3d</span>
+              <span>Move</span>
             </button>
           </div>
         </article>
@@ -107,8 +104,8 @@
             <small>Total cards</small>
           </article>
           <article>
-            <span id="masteredValue">0</span>
-            <small>Mastered</small>
+            <span id="sessionLeftValue">0</span>
+            <small>Session left</small>
           </article>
           <article>
             <span id="reviewedValue">0</span>
@@ -119,12 +116,12 @@
             <small>Avg. answer time</small>
           </article>
           <article>
-            <span id="nextReviewValue">Now</span>
-            <small>Next review</small>
+            <span id="todayValue">0</span>
+            <small>Today</small>
           </article>
           <article>
-            <span id="newCardsValue">0</span>
-            <small>New cards</small>
+            <span id="streakValue">0</span>
+            <small>Streak</small>
           </article>
         </div>
       </section>
