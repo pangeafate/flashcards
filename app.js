@@ -1,5 +1,14 @@
 (function () {
-  const cards = [...window.FLASHCARDS, ...(window.EXTRA_FLASHCARDS || [])];
+  const decks = [
+    {
+      id: "toloka-delivery-director",
+      name: "Toloka Delivery Director",
+      description: "Program Director interview practice",
+      cards: [...window.FLASHCARDS, ...(window.EXTRA_FLASHCARDS || [])]
+    },
+    ...(window.FLASHCARD_DECKS || [])
+  ];
+  const deckById = new Map(decks.map((deck) => [deck.id, deck]));
   const storeKey = "tolokaInterviewFlashcards.v1";
   const bucketNames = ["hard", "medium", "easy"];
   const bucketLabels = {
@@ -10,6 +19,7 @@
   };
 
   const elements = {
+    deckSelect: document.getElementById("deckSelect"),
     hardCount: document.getElementById("hardCount"),
     mediumCount: document.getElementById("mediumCount"),
     easyCount: document.getElementById("easyCount"),
@@ -36,6 +46,7 @@
   };
 
   let appState = loadState();
+  let activeDeckId = appState.activeDeckId;
   let selectedBucket = "medium";
   let sessionQueue = [];
   let sessionTotal = 0;
@@ -55,36 +66,61 @@
     };
   }
 
+  function activeDeck() {
+    return deckById.get(activeDeckId) || decks[0];
+  }
+
+  function activeCards() {
+    return activeDeck().cards;
+  }
+
+  function activeDeckState() {
+    return appState.decks[activeDeckId];
+  }
+
   function loadState() {
     try {
       const parsed = JSON.parse(localStorage.getItem(storeKey));
-      if (parsed && parsed.cards) {
+      if (parsed) {
         return normalizeState(parsed);
       }
     } catch (error) {
       console.warn("Could not load flashcard state", error);
     }
-    return normalizeState({ cards: {}, history: [] });
+    return normalizeState({});
   }
 
   function normalizeState(state) {
+    const hasDeckState = state.decks && typeof state.decks === "object";
+    const activeDeckId = deckById.has(state.activeDeckId) ? state.activeDeckId : decks[0].id;
     const next = {
-      cards: {},
-      history: Array.isArray(state.history) ? state.history : []
+      activeDeckId,
+      decks: {}
     };
 
-    cards.forEach((card) => {
-      const source = state.cards && state.cards[card.id] ? state.cards[card.id] : {};
-      next.cards[card.id] = {
-        ...defaultCardState(),
-        ...source,
-        bucket: normalizeBucket(source),
-        attempts: Number(source.attempts || 0),
-        moves: Number(source.moves || source.attempts || 0),
-        totalSeconds: Number(source.totalSeconds || 0),
-        lastReviewedAt: Number(source.lastReviewedAt || 0),
-        starred: Boolean(source.starred)
+    decks.forEach((deck, deckIndex) => {
+      const legacySource = !hasDeckState && deckIndex === 0 ? state : {};
+      const source = hasDeckState && state.decks[deck.id] ? state.decks[deck.id] : legacySource;
+      const sourceCards = source.cards || {};
+
+      next.decks[deck.id] = {
+        cards: {},
+        history: Array.isArray(source.history) ? source.history : []
       };
+
+      deck.cards.forEach((card) => {
+        const cardSource = sourceCards[card.id] || {};
+        next.decks[deck.id].cards[card.id] = {
+          ...defaultCardState(),
+          ...cardSource,
+          bucket: normalizeBucket(cardSource),
+          attempts: Number(cardSource.attempts || 0),
+          moves: Number(cardSource.moves || cardSource.attempts || 0),
+          totalSeconds: Number(cardSource.totalSeconds || 0),
+          lastReviewedAt: Number(cardSource.lastReviewedAt || 0),
+          starred: Boolean(cardSource.starred)
+        };
+      });
     });
 
     return next;
@@ -104,6 +140,7 @@
   }
 
   function saveState() {
+    appState.activeDeckId = activeDeckId;
     localStorage.setItem(storeKey, JSON.stringify(appState));
   }
 
@@ -119,10 +156,11 @@
   }
 
   function cardsForBucket(bucket) {
+    const deckState = activeDeckState();
     if (bucket === "starred") {
-      return cards.filter((card) => appState.cards[card.id].starred);
+      return activeCards().filter((card) => deckState.cards[card.id].starred);
     }
-    return cards.filter((card) => appState.cards[card.id].bucket === bucket);
+    return activeCards().filter((card) => deckState.cards[card.id].bucket === bucket);
   }
 
   function shuffle(values) {
@@ -150,11 +188,11 @@
   }
 
   function currentCard() {
-    return cards.find((card) => card.id === currentCardId) || null;
+    return activeCards().find((card) => card.id === currentCardId) || null;
   }
 
   function currentProgress(card) {
-    return appState.cards[card.id];
+    return activeDeckState().cards[card.id];
   }
 
   function showCard() {
@@ -165,7 +203,7 @@
     elements.showAnswerButton.hidden = false;
 
     if (!card) {
-      elements.categoryLabel.textContent = bucketLabels[selectedBucket];
+      elements.categoryLabel.textContent = `${activeDeck().name} / ${bucketLabels[selectedBucket]}`;
       elements.positionLabel.textContent = "0 / 0";
       elements.questionText.textContent = sessionTotal ? "Session complete" : `No ${bucketLabels[selectedBucket]} cards`;
       elements.answerText.textContent = "";
@@ -218,7 +256,8 @@
     progress.totalSeconds += elapsedSeconds;
     progress.lastReviewedAt = now();
 
-    appState.history.push({
+    const history = activeDeckState().history;
+    history.push({
       cardId: card.id,
       fromBucket,
       toBucket: targetBucket,
@@ -226,8 +265,8 @@
       reviewedAt: now(),
       seconds: elapsedSeconds
     });
-    if (appState.history.length > 1000) {
-      appState.history = appState.history.slice(-1000);
+    if (history.length > 1000) {
+      activeDeckState().history = history.slice(-1000);
     }
 
     sessionQueue.shift();
@@ -252,21 +291,22 @@
   }
 
   function renderStats() {
+    const deckState = activeDeckState();
     const hard = cardsForBucket("hard").length;
     const medium = cardsForBucket("medium").length;
     const easy = cardsForBucket("easy").length;
     const starred = cardsForBucket("starred").length;
-    const attempts = appState.history.length;
-    const totalSeconds = cards.reduce((sum, card) => sum + appState.cards[card.id].totalSeconds, 0);
+    const attempts = deckState.history.length;
+    const totalSeconds = activeCards().reduce((sum, card) => sum + deckState.cards[card.id].totalSeconds, 0);
     const avgSeconds = attempts ? Math.round(totalSeconds / attempts) : 0;
     const today = todayKey();
-    const todayMoves = appState.history.filter((item) => todayKey(item.reviewedAt) === today).length;
+    const todayMoves = deckState.history.filter((item) => todayKey(item.reviewedAt) === today).length;
 
     elements.hardCount.textContent = hard;
     elements.mediumCount.textContent = medium;
     elements.easyCount.textContent = easy;
     elements.starredCount.textContent = starred;
-    elements.totalCardsValue.textContent = cards.length;
+    elements.totalCardsValue.textContent = activeCards().length;
     elements.sessionLeftValue.textContent = sessionQueue.length;
     elements.reviewedValue.textContent = attempts;
     elements.averageTimeValue.textContent = avgSeconds ? `${avgSeconds}s` : "0s";
@@ -275,7 +315,7 @@
   }
 
   function calculateStreak() {
-    const reviewDays = new Set(appState.history.map((item) => todayKey(item.reviewedAt)));
+    const reviewDays = new Set(activeDeckState().history.map((item) => todayKey(item.reviewedAt)));
     let streak = 0;
     const cursor = new Date();
     while (reviewDays.has(todayKey(cursor.getTime()))) {
@@ -287,15 +327,16 @@
 
   function renderDeck() {
     const query = elements.searchInput.value.trim().toLowerCase();
-    const filtered = cards.filter((card) => {
-      const progress = currentProgress(card);
+    const deckState = activeDeckState();
+    const filtered = activeCards().filter((card) => {
+      const progress = deckState.cards[card.id];
       const searchable = `${card.category} ${card.prompt} ${card.answer} ${bucketLabels[progress.bucket]}`.toLowerCase();
       return searchable.includes(query);
     });
 
     elements.deckList.innerHTML = "";
     filtered.forEach((card) => {
-      const progress = currentProgress(card);
+      const progress = deckState.cards[card.id];
       const item = document.createElement("article");
       item.className = "deck-item";
       item.innerHTML = `
@@ -350,6 +391,29 @@
     });
   }
 
+  function switchDeck(deckId) {
+    if (!deckById.has(deckId) || deckId === activeDeckId) {
+      return;
+    }
+    activeDeckId = deckId;
+    appState.activeDeckId = deckId;
+    selectedBucket = "medium";
+    elements.searchInput.value = "";
+    saveState();
+    startSession("medium");
+  }
+
+  function renderDeckSwitcher() {
+    elements.deckSelect.innerHTML = "";
+    decks.forEach((deck) => {
+      const option = document.createElement("option");
+      option.value = deck.id;
+      option.textContent = deck.name;
+      elements.deckSelect.appendChild(option);
+    });
+    elements.deckSelect.value = activeDeckId;
+  }
+
   elements.showAnswerButton.addEventListener("click", revealAnswer);
   elements.starButton.addEventListener("click", toggleStar);
   elements.ratingGrid.addEventListener("click", (event) => {
@@ -359,12 +423,13 @@
     }
   });
   elements.resetButton.addEventListener("click", () => {
-    if (window.confirm("Reset all local practice statistics and buckets?")) {
-      localStorage.removeItem(storeKey);
-      appState = loadState();
+    if (window.confirm(`Reset local practice statistics and buckets for ${activeDeck().name}?`)) {
+      appState.decks[activeDeckId] = normalizeState({ decks: {} }).decks[activeDeckId];
+      saveState();
       startSession("medium");
     }
   });
+  elements.deckSelect.addEventListener("change", () => switchDeck(elements.deckSelect.value));
   elements.searchInput.addEventListener("input", renderDeck);
   document.querySelectorAll(".tab").forEach((tab) => {
     tab.addEventListener("click", () => setActiveView(tab.dataset.view));
@@ -383,5 +448,6 @@
     }
   });
 
+  renderDeckSwitcher();
   startSession("medium");
 })();
