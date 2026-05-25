@@ -233,6 +233,11 @@ h2 {
   white-space: pre-line;
 }
 
+#answerText strong {
+  color: #17201b;
+  font-weight: 900;
+}
+
 .primary-actions {
   display: grid;
   grid-template-columns: 1fr auto;

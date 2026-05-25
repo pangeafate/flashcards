@@ -195,6 +195,18 @@
     return activeDeckState().cards[card.id];
   }
 
+  function renderAnswerContent(card) {
+    elements.answerText.replaceChildren();
+    if (!card) {
+      return;
+    }
+    if (card.answerHtml) {
+      elements.answerText.innerHTML = card.answerHtml;
+      return;
+    }
+    elements.answerText.textContent = card.answer || "";
+  }
+
   function showCard() {
     const card = currentCard();
     cardStartedAt = now();
@@ -206,7 +218,7 @@
       elements.categoryLabel.textContent = `${activeDeck().name} / ${bucketLabels[selectedBucket]}`;
       elements.positionLabel.textContent = "0 / 0";
       elements.questionText.textContent = sessionTotal ? "Session complete" : `No ${bucketLabels[selectedBucket]} cards`;
-      elements.answerText.textContent = "";
+      renderAnswerContent(null);
       elements.showAnswerButton.textContent = "Shuffle again";
       elements.starButton.hidden = true;
       elements.sessionLabel.textContent = "0 left";
@@ -220,7 +232,7 @@
     elements.categoryLabel.textContent = `${card.category} / ${bucketLabels[progress.bucket]}`;
     elements.positionLabel.textContent = `${sessionSeen + 1} / ${sessionTotal}`;
     elements.questionText.textContent = card.prompt;
-    elements.answerText.textContent = card.answer;
+    renderAnswerContent(card);
     elements.showAnswerButton.textContent = "Show answer";
     elements.starButton.hidden = false;
     elements.starButton.textContent = progress.starred ? "Starred" : "Star";
