@@ -1,0 +1,190 @@
+window.FLASHCARD_DECKS = [
+  ...(window.FLASHCARD_DECKS || []),
+  {
+    id: "consulting-style-rl-case",
+    name: "Consulting Style RL Case",
+    description: "30 consulting-crisp questions and ideal answers",
+    cards: [
+      {
+        id: "consulting-q01",
+        category: "RL & Technical Depth",
+        prompt: "Q1. Why is the deliverable an environment, not a dataset?",
+        answer: "Because the brief says “primarily for RL” — and RL learns by acting and being scored, not by reading.\n•\tA dataset can’t be acted in. A static set of labelled conversations can only be read; the model can’t try it, so it can’t generate a reward signal.\n•\tAn environment is five parts working together — a resettable world (customer, order, restaurant, courier databases), tools to inspect and change it, a written policy defining the correct outcome, a simulated customer, a reward function scoring every attempt.\n•\tGet it wrong and the client pays for the unusable — data their training method physically cannot consume.\n•\tIt cascades — this one distinction drives the team, the QC, and the pricing.\nLand it: “For RL, the product runs — it isn’t read.”"
+      },
+      {
+        id: "consulting-q02",
+        category: "RL & Technical Depth",
+        prompt: "Q2. Walk me through the components of a Tau-bench-style environment. Which is hardest to get right?",
+        answer: "Seven components — and the reward function is hardest, by a clear margin.\n•\tThe seven parts — databases (world state), tools/APIs (the agent’s actions), policy (the rulebook), simulated customer (automated user with a hidden goal), task set (starting state + customer goal), reward function (automatic scorer), reset/logging plumbing.\n•\tReward function = hardest — must score messy, multi-step behaviour correctly every time and agree with the policy; score a policy-violating shortcut as success and RL amplifies it.\n•\tSimulated customer = second hardest — an inconsistent user makes every task built on it noisy.\n•\tThe rest are bounded — tools and databases are engineering; policy is careful writing.\n•\tSo build order and QC weighting follow the ranking — reward logic and user simulator get the most expert attention."
+      },
+      {
+        id: "consulting-q03",
+        category: "RL & Technical Depth",
+        prompt: "Q3. What is the reward function actually scoring? Explain final-state versus action-level checks.",
+        answer: "The reward scores two things at once: was the outcome correct, AND was the path policy-compliant.\n•\tFinal-state checks — is the world right at the end? Correct refund amount, right order, address actually changed.\n•\tAction-level (trajectory) checks — did the agent follow policy along the way? Identity verified before disclosure, compensation cap respected, no forbidden promises.\n•\tWhy both — a refund correct in amount but issued with no identity check is a fail; in production that is a fraud hole.\n•\tA good reward is a conjunction — correct outcome and compliant path; final-state-only teaches the model to skip the checks.\n•\tStakes — the reward is the learning signal, so its correctness is the project’s hardest success criterion."
+      },
+      {
+        id: "consulting-q04",
+        category: "RL & Technical Depth",
+        prompt: "Q4. The brief says the data is “primarily for RL.” How does that change what you build versus an SFT or evaluation brief?",
+        answer: "“Primarily for RL” changes the deliverable from labels to an executable environment.\n•\tSFT brief → golden trajectories to imitate; authoring- and review-heavy.\n•\tEval brief → a clean, uncontaminated held-out test set; modest volume.\n•\tRL brief (this one) → an environment, with three consequences: (1) need a reward function, not just labels — the hardest problem; (2) need a large, varied training pool, because the model attempts each task many times; (3) the bar shifts from “is the label right” to “does the environment give a reliable signal on every reset.”\n•\tSFT and eval don’t vanish — expert reference solutions double as SFT warm-start; an eval layer runs alongside. But scope, size, and price around the RL environment; treat SFT as a by-product."
+      },
+      {
+        id: "consulting-q05",
+        category: "RL & Technical Depth",
+        prompt: "Q5. What makes the simulated customer hard to build well, and what goes wrong if it’s bad?",
+        answer: "Hard because it must be consistent, realistically uncooperative, and leak-free — and when it’s bad the damage is invisible.\n•\tConsistent — reveal the same facts on every run, or the same task scores differently each time and the reward goes noisy.\n•\tRealistically uncooperative — real customers are vague and out-of-order; too cooperative a sim trains an agent that only handles easy users.\n•\tLeak-free — if it volunteers the answer or accepts a wrong resolution, the task is trivially passable.\n•\tThe failure mode is the dangerous kind — invisible — every task on a broken sim is silently corrupted, passes spot checks, and shows up as a model that benchmarks well and fails in production.\n•\tSo — treat the user simulator as a first-class quality surface; test consistency across repeated rollouts, not just the tasks on top of it."
+      },
+      {
+        id: "consulting-q06",
+        category: "Quality & Reward Integrity",
+        prompt: "Q6. What is “good quality data” in this context?",
+        answer: "In RL, data quality is reward quality — a good task scores correct behaviour as correct, every time.\n•\tThe dimensions — correctness (reward agrees with policy), determinism (same score on re-run), unambiguity (one defensible answer, or reward accepts all valid ones), policy-groundedness (traces to a written rule), difficulty calibration, diversity, train/eval isolation, robustness to gaming.\n•\tThe metric that matters is accepted tasks — not tasks authored.\n•\tWhy it’s not pedantry — a bad RL task doesn’t just fail to help; it actively teaches the model the wrong thing. A smaller clean set beats a larger ambiguous one."
+      },
+      {
+        id: "consulting-q07",
+        category: "Quality & Reward Integrity",
+        prompt: "Q7. What is reward hacking, and how do you design against it?",
+        answer: "The model is an optimiser — it games the letter of the reward, not the spirit — so you close the gaps, you don’t blame the model.\n•\tWhat it is — earning high reward without doing the task well.\n•\tFood Delivery examples — reward only checks “refund issued” → agent refunds generously to end conversations cheaply; reward only checks final state → agent skips the identity check because nothing penalises it.\n•\tDesign against it three ways — (1) reward = conjunction of outcome + compliant path; (2) red-team before scaling — run current models, inspect high-scoring trajectories; (3) monitor during training — a sudden pass-rate jump often means a hole was found, not skill gained.\n•\tPersonal hook — specification gaming and reward hacking are failure modes I track in my own agentic work; the fix is always tightening the measure."
+      },
+      {
+        id: "consulting-q08",
+        category: "Quality & Reward Integrity",
+        prompt: "Q8. How do you know the evaluator itself is correct?",
+        answer: "Everyone checks the tasks; few check the checker — if the evaluator is wrong, every task it scores is wrong, invisibly.\n•\tReference solutions — run 100–200 human-verified correct trajectories through the evaluator; every one must pass. A known-correct trajectory that fails = broken evaluator.\n•\tKnown-bad trajectories — construct policy-violating runs; confirm the evaluator fails them.\n•\tDeterminism testing — same trajectory, many runs, identical score; non-determinism is a silent killer.\n•\tDisagreement triage — evaluator-vs-human disagreement is a defect to root-cause (ambiguous task, unclear policy, evaluator bug), not noise to average away.\n•\tMake it standing — reference-solution pass rate is a continuous metric, not a one-time check."
+      },
+      {
+        id: "consulting-q09",
+        category: "Quality & Reward Integrity",
+        prompt: "Q9. How do you calibrate task difficulty so the task set is actually useful for RL?",
+        answer: "Useful RL tasks sit in a window — a current model sometimes passes, sometimes fails; that spread is the learning signal.\n•\tToo easy → every rollout passes → flat reward → no gradient.\n•\tToo hard → every rollout fails → flat reward → nothing learned.\n•\tCalibrate empirically — run current frontier models many times per task, measure pass rate.\n•\tFloor and ceiling — retire or rework tasks no model can pass (~below 2–3%); flag tasks passing ~70%+ as too easy.\n•\tKeep a deliberate spread, and use the baseline pass rates as the QA-and-baseline report showing the client the domain’s difficulty.\n•\tNot a one-off — as models improve, today’s hard task becomes tomorrow’s easy one; refresh periodically."
+      },
+      {
+        id: "consulting-q10",
+        category: "Quality & Reward Integrity",
+        prompt: "Q10. How do you keep the evaluation set uncontaminated and trustworthy over time?",
+        answer: "The eval set only has value if the model has never effectively seen it — protect it structurally, and report the right metric.\n•\tHard separation — eval tasks authored and stored separately, never in the training pool, with process controls.\n•\tNo near-duplicates — not just non-identical; run similarity checks across the train/eval boundary to catch paraphrases.\n•\tFreshness — hold back and rotate a reserve, so leakage through repeated use doesn’t exhaust the clean set.\n•\tProvenance — tag every eval task with how it was made, so suspected contamination can be traced and quarantined.\n•\tReport with pass^k — consistency, not a flat success rate; a 90%-per-attempt model can fall below 60% across eight tries."
+      },
+      {
+        id: "consulting-q11",
+        category: "Operational Delivery at Scale",
+        prompt: "Q11. The brief stresses operational challenges of producing data at scale. What are the top three, and why?",
+        answer: "Scale doesn’t mean “more” — it means new failure modes that don’t exist in a pilot.\n•\t1. The generated-vs-accepted gap — 30–40% of authored tasks get reworked or dropped; plan capacity on tasks accepted, not written, or you under-deliver.\n•\t2. Quality erosion — a pilot runs on a small expert team; full production needs many more authors and reviewers, and the bar slides without anyone deciding to move it.\n•\t3. The reward/evaluator bottleneck — tasks parallelise across people; reward correctness does not — it’s concentrated expert work and the most likely thing to gate the timeline.\n•\t(4, if allowed) Authoring authenticity — at scale some annotators quietly use an LLM, producing plausible but homogeneous, subtly broken work."
+      },
+      {
+        id: "consulting-q12",
+        category: "Operational Delivery at Scale",
+        prompt: "Q12. Explain the gap between tasks generated and tasks accepted. How do you plan capacity around it?",
+        answer: "Plan capacity backwards from accepted volume — the authoring count is a derived number, not the target.\n•\tThe funnel — author → schema validation → determinism check → policy-grounding review → ambiguity review → baseline run; each gate rejects some, accepted = cleared all.\n•\tThe maths — 2,000 accepted at a 65% acceptance rate → ~3,000 authored; QC must review all 3,000, rejects included.\n•\tThe formula — accepted target ÷ acceptance rate = authoring volume; authoring volume × review-time-per-task = QC capacity.\n•\tThe honest bit — the true acceptance rate is unknown until the pilot measures it; carry a buffer, track it weekly, because drift moves both cost and timeline."
+      },
+      {
+        id: "consulting-q13",
+        category: "Operational Delivery at Scale",
+        prompt: "Q13. How do you stop reviewer drift and quality erosion as you scale from pilot to full production?",
+        answer: "Drift is quiet — no bad decision, just the bar sliding — so beat it with instrumentation, not heroics.\n•\tVersioned rubric and policy — “correct” defined on paper, not in someone’s head.\n•\tGold tasks — hidden pre-adjudicated tasks salted into every queue; drift becomes a number per reviewer.\n•\tCalibration cadence — reviewers score the same tasks; disagreements adjudicated back into the rubric.\n•\tRisk-weighted review — double-review reward logic and policy edge cases; lighter review where risk is low.\n•\tQA pyramid — automated checks for mechanical failures, humans for judgment.\n•\tStaged onboarding — new reviewers calibrate against gold before touching production volume."
+      },
+      {
+        id: "consulting-q14",
+        category: "Operational Delivery at Scale",
+        prompt: "Q14. Walk me through your production pipeline, from authoring to an accepted task.",
+        answer: "An eight-gate funnel — author against a coverage map, gate hard, accept only what survives.\n•\t1. Scenario design — pick a problem from a policy-tied coverage map (fill real gaps, not what’s easy).\n•\t2. Authoring — build the starting state, customer goal, reward logic.\n•\t3. Automated validation — schema, runs, resets, deterministic.\n•\t4. Policy-grounding review — a human confirms the answer traces to a written rule.\n•\t5. Ambiguity review — a second human confirms one defensible resolution (or the reward accepts all valid ones).\n•\t6. Baseline run — current models confirm difficulty is in the useful window.\n•\t7. Adjudication — failed tasks reworked or retired.\n•\t8. Acceptance and logging — enters the accepted pool, tagged with provenance.\n•\tEvery rejection reason logged — so we fix upstream causes, not symptoms."
+      },
+      {
+        id: "consulting-q15",
+        category: "Operational Delivery at Scale",
+        prompt: "Q15. At scale, some annotators will use an LLM to author tasks. How do you detect and handle that?",
+        answer: "Real at scale — handle it on detection, process, and incentives; don’t ban the tool, control the practice.\n•\tWhy it matters — LLM-authored tasks are homogeneous, cluster on obvious scenarios, carry subtle un-reasoned defects, and pass a casual review.\n•\tDetection — uniform structure and phrasing, suspiciously clean edge cases, low diversity within one author’s batch, implausible authoring speed.\n•\tProcess — authoring tools that capture intermediate work (traceable, not a final paste); require the author’s policy rationale in their own words.\n•\tIncentives — pay per task and people mass-produce; pay and measure on accepted, calibrated tasks and the filler incentive collapses.\n•\tBe pragmatic — LLM as a controlled drafting aid with human reasoning on top is fine; the target is unsupervised generation posing as human authoring."
+      },
+      {
+        id: "consulting-q16",
+        category: "Commercials & Engagement Structuring",
+        prompt: "Q16. Why pilot-first, and what specifically must the pilot prove before you scale?",
+        answer: "The plan rests on three numbers nobody can know up front — the pilot replaces guesses with measurements.\n•\tWhy — committing full production before measuring is budgeting on guesses.\n•\tThe pilot must prove four things — (1) acceptance rate — sets the cost and timeline multiplier; (2) policy complexity — sizes policy and reward work; (3) ambiguity rate — drives rework; (4) most important — the reward function and user simulator produce a reliable signal, proven by running models against the pilot environment.\n•\tThe outcome — pilot passes → scaling is a capacity exercise on known numbers; pilot fails → found out for a fraction of the budget.\n•\tFrame to the client — de-risking, not delay; the cheapest insurance in the plan."
+      },
+      {
+        id: "consulting-q17",
+        category: "Commercials & Engagement Structuring",
+        prompt: "Q17. Walk me through how you priced this and where the margin sits.",
+        answer: "Cost = team × duration; price = fully-loaded cost + gross margin, quoted as a range.\n•\tThe cost build — squad (PM, tech lead, workforce manager) + authoring/review workforce + domain experts, each at a fully-loaded rate × phase length in months.\n•\tTwo phases sized separately — pilot ~10–14 weeks (expert-heavy), scaling ~6–10 weeks (workforce-heavy).\n•\tMargin — a gross margin on top of fully-loaded cost.\n•\tA range, not a point — volumes and durations are themselves ranges until the pilot; a single number is false precision.\n•\tFirst domain priced higher — it also builds reusable machinery; show the per-domain cost curve.\n•\tThe discipline — price off accepted volume and realistic acceptance rates, never optimistic authoring counts."
+      },
+      {
+        id: "consulting-q18",
+        category: "Commercials & Engagement Structuring",
+        prompt: "Q18. The first domain costs more. How do you justify that to a client who wants a cheap quote?",
+        answer: "You’re not buying one environment — you’re buying the factory that makes every domain after it.\n•\tWhat the premium pays for — schemas, tool framework, reward patterns, QC gates, production workflow, reviewer rubric, the playbook: one-time build.\n•\tThe curve — later domains reuse all of it: ~4–6 weeks against the first domain’s 8–10+.\n•\tTo a cheap-quote client — “A cheap one-off means domain two costs the same as domain one and you’ve bought nothing reusable. Invest a bit more now and every later domain drops.”\n•\tThe brief helps the argument — it says Food Delivery is the first of several, so the factory pays back fast.\n•\tBe honest — if they genuinely want only one domain, the calculus changes; say so."
+      },
+      {
+        id: "consulting-q19",
+        category: "Commercials & Engagement Structuring",
+        prompt: "Q19. Everything in the plan is a range. How do you give the client confidence on the numbers?",
+        answer: "A precise single number on a genuinely uncertain project isn’t reliable — it’s false precision. The range is the honesty.\n•\tThe range is reasoned — I can explain the low end (favourable acceptance, simple policy) and the high end (many edge cases, heavy rework): a model, not a guess.\n•\tThe pilot collapses it — after the pilot the three driving numbers are measured; I commit to a tight scaling-phase number at that gate.\n•\tDecision points — the client approves the pilot, sees real data, then approves scaling — not a blank cheque.\n•\tThe message — clear range now, firm number after the pilot, go/no-go in between. More confidence than a fake-precise number, not less."
+      },
+      {
+        id: "consulting-q20",
+        category: "Commercials & Engagement Structuring",
+        prompt: "Q20. Mid-conversation the client asks you to cut the timeline by a third. How do you respond?",
+        answer: "Don’t reflex yes or no — diagnose the driver, then flex scope or cost, never the reward signal.\n•\tDiagnose — hard external deadline, budget constraint, or just a preference? The response differs.\n•\tWhat won’t compress — reward-function and user-simulator work is critical-path and expert-bound; you can’t parallelise correctness with junior people.\n•\tProtect the pilot hardest — cutting it doesn’t save time, it moves risk to the most expensive place to find it.\n•\tWhat I can offer — cut scope, not rigour (fewer databases or tools, a narrower policy slice, a smaller accepted target) at the same quality bar, rest as a cheap fast-follow; or add workforce to parallelise the parts that genuinely parallelise — cost for time.\n•\tThe principle — “I’ll flex scope or cost to hit a date; I won’t flex the quality of the reward signal. A faster environment that trains on noise is a failure that just arrives sooner.”"
+      },
+      {
+        id: "consulting-q21",
+        category: "Structured & Creative Problem-Solving",
+        prompt: "Q21. The brief is one paragraph. How do you get from that to a structured plan?",
+        answer: "Method, not content — six moves.\n•\t1. Pin the deliverable — “RL” → an environment, not a dataset; state the assumption loudly.\n•\t2. Decompose — what are we building, why does the client need it, what could go wrong, how long, what resources, how much.\n•\t3. Surface the assumptions — volumes, timeline, team — labelled as assumptions a pilot will confirm.\n•\t4. Separate the audiences — internal “how it’s run” is a different document from client-facing “how it’s presented.”\n•\t5. Find the spine — one organising idea (“data quality is reward quality”) running through everything.\n•\t6. Pressure-test against the brief’s emphases — it stresses operations-at-scale, so that thread is visibly heavier.\nLand it: “The output isn’t a list of sections — it’s a plan with a spine.”"
+      },
+      {
+        id: "consulting-q22",
+        category: "Structured & Creative Problem-Solving",
+        prompt: "Q22. Make your challenges list MECE. How do you organise the risks so nothing overlaps and nothing’s missing?",
+        answer: "Organise risks by where in the system they live — a clean partition, no overlap, provably complete.\n•\tEnvironment-correctness risks — wrong reward function, non-deterministic evaluator, inconsistent user simulator.\n•\tTask-quality risks — ambiguity, weak policy grounding, poor difficulty calibration, train/eval contamination.\n•\tOperational-scale risks — the generated-vs-accepted gap, reviewer drift, the expert bottleneck on reward work, LLM-authored filler.\n•\tCommercial and scope risks — scope creep, uncertain volumes, the client-side technical-interface dependency.\n•\tWhy it’s MECE — each risk lands in exactly one bucket; the buckets walk the whole system end to end.\n•\tThen prioritise — the client-facing version is the ten that matter, each with an owner and a mitigation."
+      },
+      {
+        id: "consulting-q23",
+        category: "Structured & Creative Problem-Solving",
+        prompt: "Q23. If you had to cut the plan to the three things that most determine success, what are they?",
+        answer: "The test of a priority isn’t “is it important” — it’s “does the project die without it.”\n•\t1. The reward function is correct — it’s the learning signal; score good as bad or bad as good and every compute dollar trains the model on noise.\n•\t2. The pilot genuinely de-risks — it replaces three guessed numbers with measured ones; treat it as a formality and you scale on assumptions.\n•\t3. Plan and manage to accepted volume — the generated-vs-accepted gap is where budgets and timelines quietly break.\n•\tThe proof — get only these three right and everything else merely adequate, the project still succeeds; get everything else perfect and one of these wrong, it fails."
+      },
+      {
+        id: "consulting-q24",
+        category: "Structured & Creative Problem-Solving",
+        prompt: "Q24. Mid-project the client says they also want voice and multilingual support. How do you think about it?",
+        answer: "A calm scope decision, not a crisis — split the request, protect v1, turn it into roadmap.\n•\tSplit it — multilingual is a well-understood extension (same environment, localised policy and simulator language); voice changes the modality (speech, latency, a new error surface) — a bigger architectural change.\n•\tProtect v1 — voice and multilingual are deliberately out of scope so the first delivery is clean; adding mid-flight risks the working environment the client needs first.\n•\tRoadmap it — both become a planned v2.\n•\tThe creative upside — design v1’s schemas and policy representation localisation-aware now, at near-zero cost, and multilingual later is cheap; scope voice as its own phase.\n•\tThe answer to the client — “Yes, sequenced — and I’ll make a design choice today that makes the multilingual yes much cheaper later.”"
+      },
+      {
+        id: "consulting-q25",
+        category: "Structured & Creative Problem-Solving",
+        prompt: "Q25. How would you design the Food Delivery domain to maximise reuse for the next domain?",
+        answer: "Think in two layers — reusable infrastructure versus domain-specific — and deliberately push as much as possible into the reusable layer.\n•\tReusable across domains — the environment skeleton (reset, logging, run loop), the tool framework, reward-function patterns (final-state + action-level templates), the QC pipeline and gates, the reviewer rubric structure, the difficulty-calibration method, the playbook.\n•\tDomain-specific to Food Delivery — the databases and schema, the specific tools, the policy content, the customer-problem coverage map.\n•\tThe working habit — every time I write something Food-Delivery-specific, ask “is this an instance of a pattern?” — if yes, build the pattern and the instance separately.\n•\tThe trade — the first domain is slower because you build two things at once: the domain and the machine that makes domains. The right trade, because more domains are coming."
+      },
+      {
+        id: "consulting-q26",
+        category: "Personal Experience & Leadership",
+        prompt: "Q26. Tell me about leading a large, complex transformation.",
+        answer: "STAR — Maersk, the “minimal viable company” recovery.\n•\tSituation — Head of Modernisation (director level); transformation across ~3,000 applications, ~20,000 employees, 7,000 engineers; the business had to keep running while it changed.\n•\tTask — own the minimal-viable-company effort: identify the systems the company genuinely could not operate without, sequence the modernisation around that spine.\n•\tAction — partitioned an overwhelming problem: mapped the estate, defined “minimum viable” with the business not IT alone, prioritised ruthlessly, aligned senior stakeholders who didn’t naturally agree.\n•\tResult — a transformation sequenced and de-risked rather than attempted all at once.\n•\tTie-back — the same shape as this case: a large ambiguous problem made deliverable by finding the spine and prioritising. The pilot-first, accepted-volume discipline is that instinct applied to data production."
+      },
+      {
+        id: "consulting-q27",
+        category: "Personal Experience & Leadership",
+        prompt: "Q27. Tell me about turning around a struggling operation.",
+        answer: "STAR — Algorithmics Global, negative unit economics to +45%.\n•\tSituation — COO; EdTech across ~70 countries, 300k students, a team of 100+; unit economics negative — growing but losing money on the model itself.\n•\tTask — make the operation economically viable without killing the growth.\n•\tAction — treated it as operational and commercial discipline: real visibility into cost-to-serve, restructured how the operation ran, rebuilt the commercial engine (sales ~3x).\n•\tResult — unit economics from negative to roughly +45%.\n•\tTie-back — this case is a unit-economics problem too: it lives or dies on acceptance rate and cost-per-accepted-task. A lead who has actually turned unit economics around manages to the post-QC number and prices off real rates."
+      },
+      {
+        id: "consulting-q28",
+        category: "Personal Experience & Leadership",
+        prompt: "Q28. Tell me about building or evaluating an agentic AI system hands-on.",
+        answer: "STAR — the stealth startup’s agentic harness and evaluation framework.\n•\tSituation — Head of Product and co-founder; agentic decision orchestration — a system that builds typed, self-composing DAGs of agents.\n•\tTask — the agents had to be reliable enough to trust with real decisions, which meant measuring them, not just building them.\n•\tAction — built the agentic harness: an LLM evaluation framework, agent benchmarking, LLM-as-judge and prompt evaluation, multi-agent communication — defining correct behaviour, scoring trajectories, catching failure modes including specification gaming and reward hacking.\n•\tResult — a working harness where agent behaviour is measured, not assumed.\n•\tTie-back — I wouldn’t run this build as a black box. I know first-hand why reward correctness is the hardest problem, why a non-deterministic evaluator is a silent killer, why reward hacking is a “when.” I can hold a credible technical conversation with the client and my own tech lead."
+      },
+      {
+        id: "consulting-q29",
+        category: "Personal Experience & Leadership",
+        prompt: "Q29. Tell me about delivering with a distributed team across geographies.",
+        answer: "STAR — distributed delivery at Simplyture and Algorithmics.\n•\tSituation — CCO of Simplyture (machine-vision mobility, a team across five countries, >1bn transactions a year); earlier, an operation spanning ~70 countries at Algorithmics.\n•\tTask — consistent quality and pace with a team that shares no room, timezone, or always a first language.\n•\tAction — the unglamorous things that work: one written definition of “done”; async-first communication with a few deliberate sync calibration points; clear single-owner accountability per workstream; instrumentation, so I manage by the numbers not by who’s loudest.\n•\tResult — at Simplyture the delivery discipline held well enough that the company was prepared for, and went through, acquisition.\n•\tTie-back — this engagement runs on a distributed workforce of authors and reviewers, and reviewer drift is a named risk. Gold tasks and rubrics are exactly how I’d operationalise it."
+      },
+      {
+        id: "consulting-q30",
+        category: "Personal Experience & Leadership",
+        prompt: "Q30. Tell me about a time a project failed or went wrong, and what you did.",
+        answer: "STAR — be honest; the question tests accountability, not perfection.\n•\tSituation — a delivery early in my career planned against optimistic numbers: paper throughput rather than what survived review, a timeline assuming the happy path.\n•\tWhat went wrong — a mid-project squeeze: plenty “produced,” but accepted, usable output behind — and I had to go to stakeholders and re-baseline, a conversation I had caused.\n•\tAction — owned it directly rather than reframing it; re-planned off the real throughput number; added the buffer that should have been there from the start.\n•\tWhat changed permanently — I now plan every delivery off the post-quality-gate number, and treat early-warning instrumentation as non-negotiable, so gaps surface in week two, not week eight.\n•\tTie-back — not a coincidence the Tau-bench plan is built on accepted-not-generated volume and a pilot that measures acceptance rate before scaling. That discipline is a scar."
+      }
+    ]
+  }
+];

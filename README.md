@@ -7,5 +7,6 @@ Live site: https://pangeafate.github.io/flashcards/
 Decks:
 - Toloka Delivery Director: 88 cards.
 - Food Delivery RL Case: 30 cards.
+- Consulting Style RL Case: 30 cards.
 
 The app stores bucket placement, starred cards, session moves, and statistics separately for each deck in the browser's local storage.
